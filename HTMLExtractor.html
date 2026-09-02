@@ -89,7 +89,7 @@
                 return;
             }
 
-            // 1. Extract the File ID from the URL using Regex
+            // 1. Extract the File ID from the URL
             const fileIdMatch = urlInput.match(/(?:d\/|id=)([\w-]{25,})/);
             
             if (!fileIdMatch || fileIdMatch.length < 2) {
@@ -99,25 +99,37 @@
 
             const fileId = fileIdMatch[1];
 
-            // 2. Construct the Google Drive API URL to export a Google Doc as plain text
-            const apiUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain&key=${API_KEY}`;
-
             try {
                 statusMessage.style.color = '#333';
-                statusMessage.textContent = 'Fetching text...';
+                statusMessage.textContent = 'Checking file type...';
 
-                // 3. Fetch the data
-                const response = await fetch(apiUrl);
+                // 2. Fetch file metadata to determine if it is a Google Doc or a regular file
+                const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType&key=${API_KEY}`;
+                const metaResponse = await fetch(metaUrl);
+
+                if (!metaResponse.ok) {
+                    throw new Error("Could not access file. Ensure it is set to 'Anyone with the link' and the API key is valid.");
+                }
+
+                const metaData = await metaResponse.json();
+                
+                // 3. Route to the correct API endpoint based on the mimeType
+                let downloadUrl = '';
+                if (metaData.mimeType.includes('application/vnd.google-apps.')) {
+                    // Endpoint for native Google Workspace files (Docs, etc.)
+                    downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain&key=${API_KEY}`;
+                } else {
+                    // Endpoint for standard files (e.g., .txt, .csv) stored in Drive
+                    downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+                }
+
+                statusMessage.textContent = 'Fetching text content...';
+
+                // 4. Fetch the text data
+                const response = await fetch(downloadUrl);
 
                 if (!response.ok) {
-                    if (response.status === 403 || response.status === 401) {
-                        throw new Error("Permission denied. Ensure the document is public and your API key is valid.");
-                    } else if (response.status === 404) {
-                        throw new Error("File not found. Check the link.");
-                    } else if (response.status === 400) {
-                        throw new Error("Bad request. The file might not be a Google Doc (e.g., it's a PDF or Image).");
-                    }
-                    throw new Error(`Error: ${response.status} ${response.statusText}`);
+                    throw new Error(`Error fetching content: ${response.status} ${response.statusText}. This file format may not be extractable as text.`);
                 }
 
                 const text = await response.text();
