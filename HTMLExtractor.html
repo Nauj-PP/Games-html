@@ -1,66 +1,67 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>HTML5 Code Extractor</title>
-  <style>
-    body { background: #1a1a1a; color: white; font-family: sans-serif; padding: 30px; text-align: center; margin: 0; }
-    .container { max-width: 800px; margin: auto; }
-    .drop-zone { border: 2px dashed #00ff88; padding: 30px; border-radius: 10px; cursor: pointer; background: #222; margin-bottom: 20px; transition: 0.2s; }
-    .drop-zone:hover { background: #2a2a2a; }
-    textarea { width: 100%; height: 400px; background: #000; color: #00ff00; font-family: monospace; padding: 15px; border: 1px solid #333; border-radius: 5px; box-sizing: border-box; resize: vertical; }
-    .btn { padding: 12px 25px; cursor: pointer; background: #4285f4; color: white; font-weight: bold; border: none; border-radius: 5px; font-size: 16px; transition: 0.2s; }
-    .btn:hover { background: #3367d6; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h2 style="color: #00ff88;">HTML5 Code Extractor</h2>
-    <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
-      <p>Click here to select your HTML game file</p>
-      <input type="file" id="fileInput" accept=".html,.htm" style="display: none;" onchange="loadFile(event)">
-    </div>
+function doGet(e) {
+  var interface = 
+    '<div style="font-family: sans-serif; padding: 30px; text-align: center; background: #1a1a1a; color: white; min-height: 100vh;">' +
+    '  <h2 style="color: #00ff88;">HTML Code Extractor</h2>' +
+    '  <p>Paste Google Drive Link:</p>' +
+    '  <input type="text" id="link" style="width: 80%; padding: 12px; border-radius: 5px; border: none; margin-bottom: 10px;" placeholder="https://drive.google.com/file/d/..."> ' +
+    '  <br>' +
+    '  <button onclick="fetchCode()" id="mainBtn" style="padding: 12px 25px; cursor: pointer; background: #00ff88; color: black; font-weight: bold; border: none; border-radius: 5px;">GET CODE</button>' +
+    '  ' +
+    '  <div id="resultArea" style="display:none; margin-top: 30px; text-align: left;">' +
+    '    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">' +
+    '      <span>Preview:</span>' +
+    '      <button onclick="copyToClipboard()" id="copyBtn" style="padding: 8px 20px; cursor: pointer; background: #4285f4; color: white; border: none; border-radius: 4px; font-weight: bold;">COPY ALL</button>' +
+    '    </div>' +
+    '    <textarea id="codeBox" style="width: 100%; height: 400px; background: #000; color: #00ff00; font-family: monospace; padding: 10px; border: 1px solid #333; border-radius: 5px; white-space: pre;"></textarea>' +
+    '  </div>' +
+    '  <p id="status" style="margin-top: 10px; color: #888;"></p>' +
+    '</div>' +
+    
+    '<script>' +
+    '  function fetchCode() {' +
+    '    var val = document.getElementById("link").value;' +
+    '    var id = val.match(/[-\\w]{25,}/);' +
+    '    var btn = document.getElementById("mainBtn");' +
+    '    if (!id) { alert("Invalid Drive Link!"); return; }' +
+    '    ' +
+    '    btn.innerText = "Loading...";' +
+    '    google.script.run' +
+    '      .withSuccessHandler(function(code) {' +
+    '        document.getElementById("codeBox").value = code;' +
+    '        document.getElementById("resultArea").style.display = "block";' +
+    '        btn.innerText = "GET CODE";' +
+    '        document.getElementById("status").innerText = "Code loaded below.";' +
+    '      })' +
+    '      .withFailureHandler(function(err) {' +
+    '        btn.innerText = "GET CODE";' +
+    '        alert("Error: " + err.message + "\\n\\nMake sure you authorized the script and the file is set to 'Anyone with the link'.");' +
+    '      })' +
+    '      .getFileContent(id[0]);' +
+    '  }' +
+    '  ' +
+    '  function copyToClipboard() {' +
+    '    var copyText = document.getElementById("codeBox");' +
+    '    var btn = document.getElementById("copyBtn");' +
+    '    copyText.select();' +
+    '    copyText.setSelectionRange(0, 99999);' +
+    '    navigator.clipboard.writeText(copyText.value).then(() => {' +
+    '      btn.innerText = "COPIED!";' +
+    '      btn.style.background = "#00ff88";' +
+    '      btn.style.color = "black";' +
+    '      setTimeout(() => {' +
+    '        btn.innerText = "COPY ALL";' +
+    '        btn.style.background = "#4285f4";' +
+    '        btn.style.color = "white";' +
+    '      }, 2000);' +
+    '    });' +
+    '  }' +
+    '</script>';
+    
+  return HtmlService.createHtmlOutput(interface)
+    .setTitle("HTML Extractor")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
 
-    <div id="resultArea" style="display: none;">
-      <div class="top-bar">
-        <span id="fileName" style="color: #aaa; font-weight: bold;"></span>
-        <button class="btn" id="copyBtn" onclick="copyCode()">COPY ALL</button>
-      </div>
-      <textarea id="codeBox" readonly></textarea>
-    </div>
-  </div>
-
-  <script>
-    function loadFile(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      document.getElementById('fileName').innerText = "File: " + file.name;
-      
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('codeBox').value = e.target.result;
-        document.getElementById('resultArea').style.display = 'block';
-      };
-      reader.readAsText(file);
-    }
-
-    function copyCode() {
-      const codeBox = document.getElementById('codeBox');
-      const btn = document.getElementById('copyBtn');
-      
-      navigator.clipboard.writeText(codeBox.value).then(() => {
-        btn.innerText = "COPIED!";
-        btn.style.background = "#00ff88";
-        btn.style.color = "black";
-        setTimeout(() => {
-          btn.innerText = "COPY ALL";
-          btn.style.background = "#4285f4";
-          btn.style.color = "white";
-        }, 2000);
-      });
-    }
-  </script>
-</body>
-</html>
+function getFileContent(id) {
+  return DriveApp.getFileById(id).getBlob().getDataAsString();
+}
