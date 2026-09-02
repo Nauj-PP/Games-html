@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Extractor de Texto Plano - Google Drive</title>
+  <title>Google Drive Plain Text Extractor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -61,8 +61,8 @@
 </head>
 <body>
 
-  <h2>Extractor de Contenido de Google Drive</h2>
-  <p>Pega un enlace público de un archivo de texto, código o JSON almacenado en Drive para obtener su contenido de forma directa:</p>
+  <h2>Google Drive Text Extractor</h2>
+  <p>Paste a public Google Drive file link below to retrieve its raw text content directly:</p>
 
   <div class="input-group">
     <input 
@@ -70,47 +70,50 @@
       id="driveUrl" 
       placeholder="https://drive.google.com/file/d/1YsjY3ZrCYk0iTMOeY4vxCfYf03ptfytg/view?usp=sharing"
     >
-    <button onclick="extraerTexto()">Obtener Texto</button>
+    <button onclick="extractText()">Get Plain Text</button>
   </div>
 
   <div id="status" class="status"></div>
-  <textarea id="output" placeholder="El texto plano aparecerá aquí..." readonly></textarea>
+  <textarea id="output" placeholder="Plain text output will appear here..." readonly></textarea>
 
   <script>
-    async function extraerTexto() {
+    async function extractText() {
       const urlInput = document.getElementById('driveUrl').value.trim();
       const statusDiv = document.getElementById('status');
       const outputArea = document.getElementById('output');
 
-      // Extraer el ID único del archivo usando una expresión regular
+      // Extract the unique File ID using Regular Expressions
       const match = urlInput.match(/\/d\/([a-zA-Z0-9_-]+)/);
 
       if (!match) {
         statusDiv.style.color = 'red';
-        statusDiv.textContent = '❌ Por favor introduce un enlace válido de Google Drive.';
+        statusDiv.textContent = '❌ Please enter a valid Google Drive link.';
         return;
       }
 
       const fileId = match[1];
-      const directUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      
+      // Use CORS Proxy to bypass browser cross-origin blocking
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(directUrl)}`;
 
       statusDiv.style.color = '#0066ff';
-      statusDiv.textContent = '⏳ Cargando contenido...';
+      statusDiv.textContent = '⏳ Fetching file content...';
       outputArea.value = '';
 
       try {
-        const response = await fetch(directUrl);
+        const response = await fetch(proxyUrl);
         if (!response.ok) {
-          throw new Error('No se pudo acceder al archivo.');
+          throw new Error('Failed to fetch the file.');
         }
         const text = await response.text();
         
         outputArea.value = text;
         statusDiv.style.color = 'green';
-        statusDiv.textContent = '✅ ¡Texto obtenido con éxito!';
+        statusDiv.textContent = '✅ Content retrieved successfully!';
       } catch (error) {
         statusDiv.style.color = 'red';
-        statusDiv.textContent = '❌ Error al cargar. Asegúrate de que el archivo sea público ("Cualquier persona con el enlace").';
+        statusDiv.textContent = '❌ Fetch error. Make sure "Anyone with the link" access is enabled.';
       }
     }
   </script>
