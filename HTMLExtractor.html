@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Drive Text Extractor</title>
+    <title>Drive File Text Extractor</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: #1e1e1e;
+            color: #f0f0f0;
             max-width: 800px;
             margin: 40px auto;
             padding: 20px;
         }
-        h2 { text-align: center; color: #1a73e8; }
+        h2 { text-align: center; color: #4CAF50; }
         .container {
-            background: #fff;
+            background: #2d2d2d;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         .input-group {
             display: flex;
@@ -28,54 +28,54 @@
         input[type="text"] {
             flex: 1;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #444;
+            background: #1e1e1e;
+            color: #fff;
             border-radius: 4px;
             font-size: 16px;
         }
         button {
             padding: 10px 20px;
-            background-color: #1a73e8;
+            background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 4px;
             font-size: 16px;
             cursor: pointer;
-            transition: background 0.3s;
         }
-        button:hover { background-color: #1557b0; }
+        button:hover { background-color: #45a049; }
         textarea {
             width: 100%;
             height: 300px;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #444;
+            background: #1e1e1e;
+            color: #00ff00;
             border-radius: 4px;
             font-family: monospace;
             font-size: 14px;
             resize: vertical;
             box-sizing: border-box;
         }
-        .error { color: #d93025; font-weight: bold; margin-bottom: 10px; }
+        .message { font-weight: bold; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Google Doc to Plain Text</h2>
-        <p>Paste a public Google Doc link below to extract its text.</p>
+        <h2>Google Drive File to Text</h2>
+        <p>Paste a public Drive link (e.g., .txt, .json) to extract its raw text.</p>
         
         <div class="input-group">
-            <input type="text" id="driveLink" placeholder="https://docs.google.com/document/d/1aBcD_.../edit">
+            <input type="text" id="driveLink" placeholder="https://drive.google.com/file/d/1aBcD_.../view">
             <button onclick="extractText()">Extract Text</button>
         </div>
 
-        <div id="statusMessage" class="error"></div>
-        <textarea id="outputArea" placeholder="Your extracted text will appear here..." readonly></textarea>
+        <div id="statusMessage" class="message"></div>
+        <textarea id="outputArea" placeholder="Extracted text will appear here..." readonly></textarea>
     </div>
 
     <script>
-        // --- IMPORTANT: REPLACE WITH YOUR OWN GOOGLE API KEY ---
-        const API_KEY = 'YOUR_GOOGLE_API_KEY_HERE';
-
         async function extractText() {
             const urlInput = document.getElementById('driveLink').value;
             const outputArea = document.getElementById('outputArea');
@@ -85,60 +85,49 @@
             statusMessage.textContent = '';
 
             if (!urlInput) {
-                statusMessage.textContent = 'Please enter a Google Drive link.';
+                statusMessage.textContent = 'Please enter a link.';
+                statusMessage.style.color = '#ff5555';
                 return;
             }
 
-            // 1. Extract the File ID from the URL
             const fileIdMatch = urlInput.match(/(?:d\/|id=)([\w-]{25,})/);
-            
-            if (!fileIdMatch || fileIdMatch.length < 2) {
-                statusMessage.textContent = 'Invalid Google Drive link. Could not find File ID.';
+            if (!fileIdMatch) {
+                statusMessage.textContent = 'Invalid link. Could not find a File ID.';
+                statusMessage.style.color = '#ff5555';
                 return;
             }
 
             const fileId = fileIdMatch[1];
 
             try {
-                statusMessage.style.color = '#333';
-                statusMessage.textContent = 'Checking file type...';
+                statusMessage.style.color = '#aaaaaa';
+                statusMessage.textContent = 'Pulling raw file from Drive...';
 
-                // 2. Fetch file metadata to determine if it is a Google Doc or a regular file
-                const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType&key=${API_KEY}`;
-                const metaResponse = await fetch(metaUrl);
-
-                if (!metaResponse.ok) {
-                    throw new Error("Could not access file. Ensure it is set to 'Anyone with the link' and the API key is valid.");
-                }
-
-                const metaData = await metaResponse.json();
+                // Target the exact Google Drive file download endpoint (NO Google Docs API)
+                const driveFileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
                 
-                // 3. Route to the correct API endpoint based on the mimeType
-                let downloadUrl = '';
-                if (metaData.mimeType.includes('application/vnd.google-apps.')) {
-                    // Endpoint for native Google Workspace files (Docs, etc.)
-                    downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain&key=${API_KEY}`;
-                } else {
-                    // Endpoint for standard files (e.g., .txt, .csv) stored in Drive
-                    downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
-                }
+                // Route through a public proxy to bypass browser CORS blocks
+                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(driveFileUrl);
 
-                statusMessage.textContent = 'Fetching text content...';
-
-                // 4. Fetch the text data
-                const response = await fetch(downloadUrl);
-
+                const response = await fetch(proxyUrl);
+                
                 if (!response.ok) {
-                    throw new Error(`Error fetching content: ${response.status} ${response.statusText}. This file format may not be extractable as text.`);
+                    throw new Error(`Failed to fetch: ${response.status}`);
                 }
 
                 const text = await response.text();
+
+                // If the file isn't public, or if it's too large and triggers Google's virus scan warning, it returns HTML
+                if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.toLowerCase().includes('<html')) {
+                    throw new Error("Could not extract text. The file might not be public, or it is too large and triggered a virus scan prompt.");
+                }
+
                 outputArea.value = text;
-                statusMessage.textContent = 'Text extracted successfully!';
-                statusMessage.style.color = '#188038';
+                statusMessage.textContent = 'Done!';
+                statusMessage.style.color = '#4CAF50';
 
             } catch (error) {
-                statusMessage.style.color = '#d93025';
+                statusMessage.style.color = '#ff5555';
                 statusMessage.textContent = error.message;
             }
         }
